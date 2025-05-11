@@ -1,0 +1,44 @@
+from collections import defaultdict, deque
+
+def is_sequence_valid(pairs):
+    # Построим граф и подсчитаем входящие степени
+    graph = defaultdict(list)
+    in_degree = defaultdict(int)
+    nodes = set()
+    
+    for a, b in pairs:
+        graph[a].append(b)
+        in_degree[b] += 1
+        nodes.add(a)
+        nodes.add(b)
+    
+    # Очередь для вершин с нулевой входящей степенью
+    queue = deque([node for node in nodes if in_degree.get(node, 0) == 0])
+    topo_order = []
+    
+    while queue:
+        if len(queue) > 1:
+            # Если в очереди больше одной вершины, порядок не единственный
+            return "Неполная (нельзя однозначно определить порядок)"
+        
+        current = queue.popleft()
+        topo_order.append(current)
+        
+        for neighbor in graph.get(current, []):
+            in_degree[neighbor] -= 1
+            if in_degree[neighbor] == 0:
+                queue.append(neighbor)
+    
+    if len(topo_order) != len(nodes):
+        return "Противоречивая (есть циклы)"
+    else:
+        return "Полная (можно построить полный порядок: " + " → ".join(topo_order) + ")"
+
+# Примеры использования:
+pairs1 = [('b', 'c'), ('c', 'a')]  # Полный порядок: b → c → a
+pairs2 = [('a', 'b'), ('b', 'a')]  # Противоречивая (цикл a ↔ b)
+pairs3 = [('a', 'b'), ('a', 'c')]  # Неполная (нельзя определить порядок между b и c)
+
+print(is_sequence_valid(pairs1))  # Полная
+print(is_sequence_valid(pairs2))  # Противоречивая
+print(is_sequence_valid(pairs3))  # Неполная
