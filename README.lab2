@@ -1,0 +1,86 @@
+import sys
+import time
+
+# --- Проверка зависимостей ---
+def check_dependencies():
+    try:
+        import numpy as np
+    except ImportError:
+        print("\nОшибка: Не найден модуль 'numpy'.")
+        print("Установите его вручную командой:")
+        print("  pip install numpy")
+        sys.exit(1)  # Завершаем программу с ошибкой
+
+    try:
+        import mkl
+    except ImportError:
+        print("\nПредупреждение: Не найден модуль 'mkl' (Intel Math Kernel Library).")
+        print("BLAS-оптимизации будут недоступны. Установите MKL для максимальной производительности:")
+        print("  pip install mkl")
+        print("Или используйте дистрибутив Python с MKL (например, Anaconda).\n")
+
+check_dependencies()  # Проверяем перед началом работы
+
+# --- Инициализация numpy ---
+import numpy as np
+
+# --- Генерация матриц 2048x2048 (complex64) ---
+n = 2048
+print(f"Генерация случайных матриц {n}x{n}...")
+A = np.random.rand(n, n).astype(np.complex64) + 1j * np.random.rand(n, n).astype(np.complex64)
+B = np.random.rand(n, n).astype(np.complex64) + 1j * np.random.rand(n, n).astype(np.complex64)
+
+# --- 1. Наивный алгоритм (O(n^3)) ---
+def naive_matrix_mult(A, B):
+    C = np.zeros((n, n), dtype=np.complex64)
+    for i in range(n):
+        for j in range(n):
+            for k in range(n):
+                C[i, j] += A[i, k] * B[k, j]
+    return C
+
+# --- 2. BLAS (если MKL доступен) ---
+def blas_matrix_mult(A, B):
+    return np.dot(A, B)  # Использует BLAS, если numpy собран с MKL
+
+# --- 3. Блочный алгоритм (оптимизированный) ---
+def block_matrix_mult(A, B, block_size=64):
+    C = np.zeros((n, n), dtype=np.complex64)
+    for i in range(0, n, block_size):
+        for j in range(0, n, block_size):
+            for k in range(0, n, block_size):
+                C[i:i+block_size, j:j+block_size] += np.dot(
+                    A[i:i+block_size, k:k+block_size],
+                    B[k:k+block_size, j:j+block_size]
+                )
+    return C
+
+# --- Замер времени ---
+def benchmark(func, A, B, name):
+    print(f"\nЗапуск: {name}...")
+    start = time.time()
+    C = func(A, B)
+    t = time.time() - start
+    c = 2 * n**3  # Теоретическая сложность
+    perf = (c / t) * 1e-6  # Производительность в MFlops
+    print(f"Результат: {name} | Время: {t:.2f} сек | Производительность: {perf:.2f} MFlops")
+    return C
+
+# --- Основной блок ---
+if __name__ == "__main__":
+    print("\n=== Перемножение комплексных матриц 2048x2048 ===")
+    
+    # Запуск методов
+    C_naive = benchmark(naive_matrix_mult, A, B, "Наивный алгоритм")
+    C_blas = benchmark(blas_matrix_mult, A, B, "BLAS (если доступен)")
+    C_block = benchmark(block_matrix_mult, A, B, "Блочный алгоритм")
+
+    # Проверка ошибок
+    error = np.max(np.abs(C_blas - C_block))
+    print(f"\nОшибка между BLAS и блочным методом: {error:.2e}")
+
+    # Сравнение производительности
+    if 'mkl' in sys.modules:
+        print("\nBLAS (MKL) активен: максимальная производительность.")
+    else:
+        print("\nBLAS (MKL) не обнаружен: производительность ограничена.")
