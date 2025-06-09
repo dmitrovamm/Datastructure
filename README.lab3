@@ -1,25 +1,48 @@
 from collections import defaultdict, deque
 
-def is_sequence_valid(pairs):
+def check_sequence(pairs):
     # Построим граф и подсчитаем входящие степени
     graph = defaultdict(list)
+    reverse_graph = defaultdict(list)
     in_degree = defaultdict(int)
     nodes = set()
     
     for a, b in pairs:
         graph[a].append(b)
+        reverse_graph[b].append(a)
         in_degree[b] += 1
         nodes.add(a)
         nodes.add(b)
     
-    # Очередь для вершин с нулевой входящей степенью
+    # Проверка на противоречивость (наличие циклов)
+    visited = set()
+    recursion_stack = set()
+    
+    def has_cycle(node):
+        visited.add(node)
+        recursion_stack.add(node)
+        for neighbor in graph.get(node, []):
+            if neighbor not in visited:
+                if has_cycle(neighbor):
+                    return True
+            elif neighbor in recursion_stack:
+                return True
+        recursion_stack.remove(node)
+        return False
+    
+    for node in nodes:
+        if node not in visited:
+            if has_cycle(node):
+                return "Противоречивая"
+    
+    # Проверка на полноту (единственный топологический порядок)
     queue = deque([node for node in nodes if in_degree.get(node, 0) == 0])
     topo_order = []
+    is_complete = True
     
     while queue:
         if len(queue) > 1:
-            # Если в очереди больше одной вершины, порядок не единственный
-            return "Неполная (нельзя однозначно определить порядок)"
+            is_complete = False
         
         current = queue.popleft()
         topo_order.append(current)
@@ -29,16 +52,19 @@ def is_sequence_valid(pairs):
             if in_degree[neighbor] == 0:
                 queue.append(neighbor)
     
-    if len(topo_order) != len(nodes):
-        return "Противоречивая (есть циклы)"
+    if is_complete:
+        return f"Полная (порядок: {' → '.join(topo_order)})"
     else:
-        return "Полная (можно построить полный порядок: " + " → ".join(topo_order) + ")"
+        return "Неполная"
 
 # Примеры использования:
 pairs1 = [('b', 'c'), ('c', 'a')]  # Полный порядок: b → c → a
 pairs2 = [('a', 'b'), ('b', 'a')]  # Противоречивая (цикл a ↔ b)
 pairs3 = [('a', 'b'), ('a', 'c')]  # Неполная (нельзя определить порядок между b и c)
 
-print(is_sequence_valid(pairs1))  # Полная
-print(is_sequence_valid(pairs2))  # Противоречивая
-print(is_sequence_valid(pairs3))  # Неполная
+print("Автор: Дмитрова Марина Марселевна")
+print("Группа: 090304-РПИа-о24")
+print("\nРезультаты проверки:")
+print("1.", check_sequence(pairs1))
+print("2.", check_sequence(pairs2))
+print("3.", check_sequence(pairs3))
